@@ -1,0 +1,14 @@
+fastapi
+pydantic
+langchain
+langchain-google-genai
+langchain-community
+supabase
+numpy
+scikit-learn
+pandas
+gspread
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
+uvicorn

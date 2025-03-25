@@ -1,0 +1,7 @@
+venv/
+.env
+*.xlsx
+venv/
+credentials.json
+venv/
+credentials.json

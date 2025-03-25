@@ -1,0 +1,477 @@
+/* ---------- Variables & Global Styles ---------- */
+:root {
+    --primary-color: #17294f;       /* Deep navy blue (main brand color) */
+    --primary-light: #213a6b;       /* Lighter navy for hover states */
+    --secondary-color: #ffffff;     /* White text */
+    --accent-color: #005ea3;        /* Accent blue */
+    --accent-light: #38b0f7;        /* Light accent for highlights */
+    --background-color: #f5f8fa;    /* Light gray background */
+    --card-bg: #ffffff;             /* White card background */
+    --border-color: #e1e7ec;        /* Light gray border */
+    --text-color: #333333;          /* Dark text */
+    --text-secondary: #6b7280;      /* Secondary text */
+    --success-color: #38b249;       /* Green for success states */
+    --font-family-heading: 'Montserrat', sans-serif;
+    --font-family-body: 'Open Sans', sans-serif;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: var(--font-family-body);
+    background-color: var(--background-color);
+    color: var(--text-color);
+    line-height: 1.6;
+}
+
+/* ---------- Container & Layout ---------- */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-family-heading);
+    font-weight: 600;
+}
+
+a {
+    text-decoration: none;
+    color: var(--accent-color);
+    transition: color 0.3s ease;
+}
+
+a:hover {
+    color: var(--accent-light);
+}
+
+.card {
+    background-color: var(--card-bg);
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+}
+
+/* ---------- Header ---------- */
+.header {
+    background-color: var(--primary-color);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.logo {
+    height: 40px;
+}
+
+.navbar ul {
+    display: flex;
+    list-style: none;
+    gap: 2rem;
+}
+
+.navbar a {
+    color: var(--secondary-color);
+    font-weight: 500;
+    font-family: var(--font-family-heading);
+    font-size: 0.9rem;
+    position: relative;
+    padding: 0.5rem 0;
+}
+
+.navbar a:hover {
+    color: var(--accent-light);
+}
+
+.navbar a.active {
+    color: var(--accent-light);
+}
+
+.navbar a.active:after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 2px;
+    width: 100%;
+    background-color: var(--accent-light);
+}
+
+/* ---------- Hero Section ---------- */
+.hero {
+    background-color: var(--primary-color);
+    background-image: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+    color: var(--secondary-color);
+    padding: 5rem 2rem;
+    text-align: center;
+}
+
+.hero-content {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.hero h1 {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    font-weight: 700;
+}
+
+.hero p {
+    font-size: 1.2rem;
+    margin-bottom: 2rem;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+    opacity: 0.9;
+}
+
+/* ---------- Intro Section ---------- */
+.intro-section {
+    text-align: center;
+    max-width: 800px;
+    margin: 3rem auto;
+    padding: 0 2rem;
+}
+
+.intro-section h2 {
+    font-size: 1.8rem;
+    margin-bottom: 1rem;
+    color: var(--primary-color);
+}
+
+.intro-section p {
+    color: var(--text-secondary);
+}
+
+/* ---------- Upload Section ---------- */
+.upload-section {
+    max-width: 800px;
+    margin: 2rem auto 3rem;
+    padding: 0 2rem;
+}
+
+.upload-box {
+    border: 2px dashed var(--border-color);
+    border-radius: 8px;
+    padding: 3rem;
+    text-align: center;
+    background-color: #f8f9fc;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.upload-box:hover {
+    border-color: var(--accent-color);
+    background-color: #f0f6ff;
+}
+
+.upload-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.upload-icon {
+    color: var(--accent-color);
+    margin-bottom: 0.5rem;
+}
+
+.upload-content h3 {
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.browse-link {
+    color: var(--accent-color);
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.3s ease;
+}
+
+.browse-link:hover {
+    color: var(--accent-light);
+    text-decoration: underline;
+}
+
+.file-info {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+}
+
+/* Hover effect for dragover */
+.upload-box.dragover {
+    border-color: var(--accent-color);
+    background-color: #f0f6ff;
+    box-shadow: 0 0 15px rgba(0, 94, 163, 0.1);
+}
+
+/* ---------- Progress Bar ---------- */
+.progress-bar {
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+    background-color: #e6e9ef;
+    border-radius: 4px;
+    overflow: hidden;
+    height: 8px;
+}
+
+.progress {
+    height: 100%;
+    background-color: var(--accent-color);
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+/* ---------- Results Section ---------- */
+.results-section {
+    padding: 2rem;
+}
+
+.results-section h2 {
+    font-size: 1.8rem;
+    margin-bottom: 1.5rem;
+    color: var(--primary-color);
+    text-align: center;
+}
+
+/* ---------- Chat Container ---------- */
+.chat-container {
+    max-width: 800px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* ---------- Messages ---------- */
+.message {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    max-width: 80%;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.message-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--primary-light);
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.message-content {
+    background-color: var(--card-bg);
+    border-radius: 8px;
+    padding: 1rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    position: relative;
+}
+
+.message.question {
+    align-self: flex-end;
+}
+
+.message.question .message-content {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.hero {
+    background-color: var(--primary-color);
+    background-image: url('/static/images/hero-bg.jpg'), linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+    background-size: cover;
+    background-position: center;
+    background-blend-mode: overlay;
+    color: var(--secondary-color);
+    padding: 5rem 2rem;
+    text-align: center;
+}
+
+.message.question .message-content:after {
+    content: '';
+    position: absolute;
+    right: -10px;
+    top: 15px;
+    border-width: 10px 0 10px 10px;
+    border-style: solid;
+    border-color: transparent transparent transparent var(--primary-color);
+}
+
+.message.response {
+    align-self: flex-start;
+}
+
+.message.response .message-content:after {
+    content: '';
+    position: absolute;
+    left: -10px;
+    top: 15px;
+    border-width: 10px 10px 10px 0;
+    border-style: solid;
+    border-color: transparent var(--card-bg) transparent transparent;
+}
+
+.source-tag {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 0.75rem;
+    text-align: right;
+    font-style: italic;
+}
+
+/* ---------- Footer ---------- */
+.footer {
+    background-color: var(--primary-color);
+    color: var(--secondary-color);
+    padding: 3rem 2rem;
+    margin-top: 4rem;
+}
+
+.footer-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 2rem;
+    align-items: center;
+}
+
+.footer-links ul {
+    list-style: none;
+    display: flex;
+    gap: 1.5rem;
+    justify-content: center;
+}
+
+.footer-links a {
+    color: var(--secondary-color);
+    opacity: 0.8;
+    font-size: 0.9rem;
+    transition: opacity 0.3s ease;
+}
+
+.footer-links a:hover {
+    opacity: 1;
+    text-decoration: underline;
+}
+
+.footer-copyright {
+    text-align: right;
+    opacity: 0.7;
+    font-size: 0.85rem;
+}
+
+/* ---------- Responsive Design ---------- */
+@media (max-width: 768px) {
+    .header-content {
+        flex-direction: column;
+        padding: 1rem;
+    }
+    
+    .navbar ul {
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+    
+    .hero {
+        padding: 3rem 1rem;
+    }
+    
+    .hero h1 {
+        font-size: 2rem;
+    }
+    
+    .hero p {
+        font-size: 1rem;
+    }
+    
+    .upload-box {
+        padding: 2rem 1rem;
+    }
+    
+    .message {
+        max-width: 90%;
+    }
+    
+    .footer-content {
+        grid-template-columns: 1fr;
+        text-align: center;
+        gap: 1.5rem;
+    }
+    
+    .footer-logo, .footer-copyright {
+        text-align: center;
+    }
+    
+    .footer-links ul {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+}
+/* Additional styles for Chat Model Section */
+
+#chatSection {
+    padding: 2rem;
+    border: 2px dashed red;
+  }
+  
+  .chat-model-section {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+  
+  .chat-input {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+  
+  .chat-input input[type="text"] {
+    flex: 1;
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+  }
+  
+  .chat-input button {
+    background-color: var(--accent-color);
+    color: var(--secondary-color);
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  
+  .chat-input button:hover {
+    background-color: var(--accent-light);
+  }
+  
