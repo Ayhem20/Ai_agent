@@ -13,5 +13,6 @@ class Settings:
     SUPABASE_URL = os.getenv("SUPABASE_URL")
     SUPABASE_KEY = os.getenv("SUPABASE_KEY")
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+    GPT_API_KEY = os.getenv("GPT_API_KEY")
 
 settings = Settings()

@@ -1,6 +1,8 @@
 import re
 import pandas as pd
-from typing import List
+import logging
+
+logger = logging.getLogger(__name__)
 
 def detect_and_extract_questions_answers(input_file: str, output_file: str):
     """
@@ -23,14 +25,17 @@ def detect_and_extract_questions_answers(input_file: str, output_file: str):
             question = match.group(1).strip()
             answer = match.group(2).strip()
             word_count = len(question.split())
-            
-            if word_count < 5:
+              if word_count < 5:
                 extracted_data.append({"question": question, "answer": answer})
     
     # Save results to an Excel file
     extracted_df = pd.DataFrame(extracted_data)
     extracted_df.to_excel(output_file, index=False)
-    print(f"✅ Extracted short questions and answers saved to {output_file}")
+    logger.info(f"Extracted short questions and answers saved to {output_file}")
 
-# Example usage
-detect_and_extract_questions_answers("C:\\Users\\Msi\\Desktop\\Excel_ai_agent\\final cleaned data.xlsx", "short_questions_answers(6words).xlsx")
+
+if __name__ == "__main__":
+    # Example usage - only runs when script is executed directly
+    input_file = "input_data.xlsx"  # Replace with your input file path
+    output_file = "short_questions_answers.xlsx"  # Replace with your desired output file path
+    detect_and_extract_questions_answers(input_file, output_file)

@@ -1,7 +1,28 @@
-venv/
+# Ignore Python cache and environment files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.env
 .env
-*.xlsx
-venv/
+
+# Ignore React/node modules and build output
+node_modules/
+frontend/node_modules/
+frontend/build/
+
+# Cache and temp folders
+.cache/
+*.log
+
+# Ignore sensitive credentials
 credentials.json
-venv/
-credentials.json
+
+# OS and IDE files
+.DS_Store
+*.swp
+.vscode/
+.idea/
+
+# VS Code history
+.history/

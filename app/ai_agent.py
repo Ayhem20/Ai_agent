@@ -1,140 +1,186 @@
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.prompts import ChatPromptTemplate
-from langchain.schema.runnable import RunnableSequence
-from app.vector_search import VectorSearch
 import logging
-from typing import Dict
-from typing import List, Tuple
+from typing import Dict, List, Tuple, Any
+
+from langdetect import detect, LangDetectException
+
+from app.planning_agent import PlanningAgent
+from app.judge_agent import JudgeAgent
+from app.generator_agent import GeneratorAgent
+from app.vector_search import VectorSearch
 
 logger = logging.getLogger(__name__)
 
 class AIAgent:
-    SYSTEM_TEMPLATE = """Role: You are an intelligent assistant for Triskell Software France, specialized in answering client questions about our SaaS PPM (Project Portfolio Management) software. Your responses must be accurate, professional, and based solely on the provided context.
-
-Instructions:
-
-Analyze the Question:
-
-- Carefully analyze the client's question to determine its intent and scope.
-
-Use Context & Similarity Scores:
-
-- The context contains historical questions and answers retrieved from a vector database, along with similarity scores (ranging from 0 to 1.0, where 1.0 is a perfect match).
-- Prioritize answers with high similarity scores (close to 1.0) as they are most relevant to the client's question.
-- If multiple relevant answers exist, synthesize a comprehensive response.
-- If no relevant match exists, respond: "Not Found."
-
-Response Guidelines:
-
-- Keep answers clear, concise, and professional.
-- Avoid technical jargon unless explicitly required.
-
-Fallback for Unknown Queries:
-
-- If the context does not contain relevant information or the similarity scores are too low, respond with: "Not Found. Please contact our support team for further assistance."
-
-### User's query:
-{question}
-
-### Context:
-{context}
-"""
-
-    def __init__(self, gemini_api_key: str):
-        """Initialize the RAG-based AI Agent with Gemini."""
+    """
+    Main AI Agent that orchestrates the multi-agent RAG pipeline.
+    """
+    
+    def __init__(self, gpt_api_key: str, use_hybrid_search: bool = True, vector_weight: float = 0.7, use_query_rewriting: bool = True):
+        """
+        Initialize the RAG-based AI Agent with GPT.
+        
+        Args:
+            gpt_api_key: API key for GPT model
+            use_hybrid_search: Whether to use hybrid search (vector + keyword) or just vector search
+            vector_weight: Weight of vector search in hybrid search (0-1)
+            use_query_rewriting: Whether to use query rewriting to improve search results
+        """
+        self.api_key = gpt_api_key
+        self.use_hybrid_search = use_hybrid_search
+        self.vector_weight = vector_weight
+        self.use_query_rewriting = use_query_rewriting
+        
+        # Initialize vector search
         self.vector_search = VectorSearch()
         
-        # Initialize Gemini LLM
-        self.llm = ChatGoogleGenerativeAI(
-            model="gemini-2.0-flash",
-            temperature=0,
-            google_api_key=gemini_api_key
-        )
-        
-        self.prompt = ChatPromptTemplate.from_template(self.SYSTEM_TEMPLATE)
-        self.chain = self.prompt | self.llm  # Equivalent to `RunnableSequence([self.prompt, self.llm])`
+        # Initialize the specialized agents
+        self.planning_agent = PlanningAgent(gpt_api_key, use_query_rewriting)
+        self.judge_agent = JudgeAgent(gpt_api_key)
+        self.generator_agent = GeneratorAgent(gpt_api_key)
+
+    def _detect_language(self, text: str) -> str:
+        """Detect the language of a text (returns 'en' or 'fr')."""
+        try:
+            # Use langdetect to identify the language
+            lang = detect(text)
+            # For now, we only support English and French
+            return 'fr' if lang == 'fr' else 'en'
+        except LangDetectException:
+            # Default to English if detection fails
+            return 'en'
 
     async def process_question(self, question: str) -> Dict:
-        """Process a question using RAG approach while merging multiple relevant answers."""
+        """
+        Process a question using the multi-agent RAG pipeline.
+        
+        Args:
+            question: User's question
+            
+        Returns:
+            Dictionary with the final answer and metadata
+        """
+        # Step 1: Detect language
+        language = self._detect_language(question)
+        logger.info(f"Detected language: {language}")
+        
+        # Step 2: Plan the query using the planning agent
+        query_plan = await self.planning_agent.plan_query(question)
+        original_query = query_plan["original_query"]
+        rewritten_query = query_plan["rewritten_query"]
+        query_planning_output = query_plan["query_plan"]
+        
+        # Log the query planning output
+        logger.info(f"QUERY PLANNING AGENT OUTPUT:")
+        logger.info(f"Original query: '{original_query}'")
+        logger.info(f"Rewritten query: '{rewritten_query}'")
+        logger.info(f"Query plan:\n{query_planning_output}")
+        
+        # Step 3: Search for relevant context
+        relevant_contexts = []
+        source_type = "Vector"
+        all_contexts = []
+        
         try:
-            # Get multiple matches from vector search
-            context_pairs = await self.vector_search.search(question, k=3)
-
-            if not context_pairs:
-                return {"answer": "Not Found", "similarity": 0.0}
-
-            # Filter responses with similarity >= 0.7 (to avoid weak matches)
-            relevant_contexts = [(ctx, sim) for ctx, sim in context_pairs]
-
-            if not relevant_contexts:
-                return {"answer": "Not Found", "similarity": 0.0}
-
-            # Merge multiple relevant answers into a structured response
-            formatted_context = self._format_context(relevant_contexts)
-
-            # 🚀 NEW: Combine system prompt with the merged response
-            full_context = self.SYSTEM_TEMPLATE.format(question=question, context=formatted_context)
-
-            # 🚀 NEW: Send the merged response to Gemini for final formatting
-            final_answer = await self._generate_rag_response(question, full_context)
-
-            result = {
-                "answer": final_answer,
-                "similarity": max(sim for _, sim in relevant_contexts)  # Get the highest similarity score
+            # Use the rewritten query from the planning step
+            if self.use_hybrid_search:
+                # Use regular hybrid search
+                relevant_contexts = await self.vector_search.hybrid_search(
+                    rewritten_query, 
+                    k=3,
+                    vector_weight=self.vector_weight
+                )
+                source_type = "Hybrid"
+            else:
+                # Use basic vector search only
+                relevant_contexts = await self.vector_search.search(rewritten_query, k=3)
+                source_type = "Vector"
+                
+            logger.info(f"RETRIEVAL AGENT OUTPUT:")
+            logger.info(f"Found {len(relevant_contexts)} relevant contexts using {source_type} search")
+            
+            # Log the context retrieval details
+            for i, (context, score) in enumerate(relevant_contexts, 1):
+                question = context.get("content", "")
+                answer = context.get("metadata", {}).get("answer", "")
+                logger.info(f"Context #{i} [Score: {score:.4f}]:")
+                logger.info(f"  Question: {question}")
+                logger.info(f"  Answer: {answer}")
+            
+            # Store the original contexts
+            all_contexts = relevant_contexts.copy()
+            
+        except Exception as e:
+            logger.error(f"Error retrieving context: {str(e)}")
+            # Continue with empty context list
+        
+        # Check if we have meaningful results
+        has_good_match = any(score >= 0.5 for _, score in relevant_contexts)
+        
+        # Format context for prompt
+        formatted_context = self.generator_agent._format_context(relevant_contexts, language)
+        
+        # If no good match found, try to use Gemini with a note
+        if not has_good_match:
+            logger.info("No good match found in context, using Gemini with a note")
+        
+        # Step 4: Generate initial response
+        initial_response = await self.generator_agent.generate_response(
+            rewritten_query, formatted_context, language
+        )
+        
+        # Log the initial generator response
+        logger.info(f"GENERATOR AGENT OUTPUT:")
+        logger.info(f"Initial response:\n{initial_response}")
+        
+        # Step 5: Judge and improve the response
+        final_response = await self.judge_agent.judge_response(
+            original_query=original_query,
+            rewritten_query=rewritten_query,
+            response=initial_response,
+            contexts=relevant_contexts,
+            language=language
+        )
+        
+        # Log the final judged response
+        logger.info(f"JUDGE AGENT OUTPUT:")
+        logger.info(f"Final response:\n{final_response}")
+        
+        # Store the agent outputs for returning to the client
+        agent_outputs = {
+            "query_planning": {
+                "original_query": original_query,
+                "rewritten_query": rewritten_query,
+                "query_plan": query_planning_output
+            },
+            "retrieval": {
+                "source_type": source_type,
+                "contexts_found": len(relevant_contexts),
+                "has_good_match": has_good_match,
+                "top_contexts": [
+                    {
+                        "question": context.get("content", ""),
+                        "answer": context.get("metadata", {}).get("answer", ""),
+                        "score": score
+                    } for context, score in relevant_contexts[:3]
+                ]
+            },
+            "generator": {
+                "initial_response": initial_response
+            },
+            "judge": {
+                "final_response": final_response
             }
-
-            await self._log_interaction(question, result)
-            return result
-
-        except Exception as e:
-            logger.error(f"Error processing question: {str(e)}")
-            raise
-
-
-    def _format_context(self, relevant_contexts: List[Tuple[dict, float]]) -> str:
-        """Format the context with retrieved questions, answers (from metadata), and similarity scores."""
+        }
         
-        formatted_entries = []
-        for idx, (context_data, score) in enumerate(relevant_contexts, start=1):
-            # Extract question from the "content" column
-            question_part = context_data.get("content", "Non spécifié")
-            
-            # Extract answer from metadata JSON
-            answer_part = context_data.get("metadata", {}).get("answer", "Non spécifié")
-            
-            # Format the structured entry
-            formatted_entries.append(f"question{idx}: {question_part.strip()}\nanswer: {answer_part.strip()}\nscore: {score:.2f}")
-        
-        # Construct the final formatted context
-        final_context = "Voici les informations trouvées concernant votre question :\n\n" + "\n\n".join(formatted_entries)
-        
-        return final_context.strip()
-
-
-
-    async def _generate_rag_response(self, question: str, context: str) -> str:
-        """Generate response using retrieved context."""
-        try:
-            if context.startswith("Pas de réponse"):
-                return "Not Found"
-
-            # Log the context being sent to the LLM
-            logger.info(f"🔍 Context Sent to LLM:\n{context}")
-
-            response = await self.chain.ainvoke({"question": question, "context": context})
-            return str(response.content).strip()
-
-        except Exception as e:
-            logger.error(f"Error generating RAG response: {str(e)}")
-            raise
-
-    async def _log_interaction(self, question: str, response: Dict) -> None:
-        """Log the interaction details."""
-        try:
-            logger.info(
-                f"Question: {question[:100]}... \n"
-                f"Similarity: {response['similarity']:.2f} \n"
-                f"Final answer: {response['answer'][:100]}..."
-            )
-        except Exception as e:
-            logger.error(f"Error logging interaction: {str(e)}")
+        # Return the response along with metadata
+        return {
+            "answer": final_response,
+            "language": language,
+            "tools_used": [source_type],
+            "has_good_match": has_good_match,
+            "original_query": original_query,
+            "query_used": rewritten_query,
+            "was_rewritten": original_query != rewritten_query,
+            "all_contexts": all_contexts,
+            "agent_outputs": agent_outputs  # Include all agent outputs
+        }
