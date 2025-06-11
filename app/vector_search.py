@@ -6,7 +6,7 @@ from typing import List, Tuple, Dict, Any
 
 import numpy as np
 from langchain_community.vectorstores import SupabaseVectorStore
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
 from rank_bm25 import BM25Okapi
 from supabase import create_client
 
@@ -16,32 +16,18 @@ from app.log_duplicate import log_duplicate
 logger = logging.getLogger(__name__)
 
 class VectorSearch:
-    def __init__(self, model_name: str = "models/text-embedding-004"):
-        """Initialize vector search with Google Gemini embeddings."""
+    def __init__(self, model_name: str = "text-embedding-3-small"):
+        """Initialize vector search with OpenAI embeddings."""
         self.supabase = create_client(
             settings.SUPABASE_URL,
             settings.SUPABASE_KEY
         )
 
-        # Initialize Google Gemini embeddings
-        self.embeddings_model = GoogleGenerativeAIEmbeddings(
+        # Initialize OpenAI embeddings
+        self.embeddings = OpenAIEmbeddings(
             model=model_name,
-            google_api_key=settings.GEMINI_API_KEY
+            openai_api_key=settings.GPT_API_KEY
         )
-
-        # For consistency with the vector store interface,
-        # define a simple wrapper function for embedding queries.
-        class GoogleEmbeddingsWrapper:
-            def __init__(self, model):
-                self.model = model
-
-            def embed_query(self, text: str):
-                return self.model.embed_query(text)  # Directly use LangChain's method
-
-            def embed_documents(self, texts: List[str]):
-                return self.model.embed_documents(texts)  # For batch processing
-
-        self.embeddings = GoogleEmbeddingsWrapper(self.embeddings_model)
 
         self.vector_store = SupabaseVectorStore(
             client=self.supabase,
