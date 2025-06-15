@@ -4,60 +4,54 @@ from typing import Dict, List, Tuple, Any
 
 from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
-from langchain.schema.runnable import RunnableSequence
 
 logger = logging.getLogger(__name__)
 
 class GeneratorAgent:
     """
-    Generator Agent that creates responses from retrieved context.
+    Generator Agent that creates responses from validated context or returns a fallback message.
     """
-    
     # English system template
-    SYSTEM_TEMPLATE_EN = """You are a Triskell Software PPM specialist. Answer user questions about our project portfolio management software by leveraging the historical Q&A pairs from our winning RFP responses.
+    SYSTEM_TEMPLATE_EN = """You are a Triskell Software PPM specialist providing concise, business-focused RFP responses. Answer questions using ONLY the historical Q&A data from our winning proposals.
 
-Context: The retrieved results below contain similar historical questions with their answers written by our successful employees in winning RFP (Request for Proposal) responses:
-
+Context from successful RFP responses:
 {context}
 
-Rules:
-1. Use ONLY information from the provided historical Q&A pairs to answer
-2. Prioritize content with higher relevance scores
-3. MIRROR THE TONE AND STYLE of our previous successful RFP responses - this is critical
-4. For Excel data, format formulas and functions properly using code blocks
-5. Keep responses professional, clear and concise
-6. If the retrieved context is irrelevant (score < 0.5) or missing critical details, respond with "Not Found"
-7. DO NOT include source numbers, relevance scores, or references in your answer
-8. DO NOT mention specific company names unless they appear in the original query
-9. Always ensure your response precisely addresses the specific focus of the query
-10. Use paragraphs and bullet points for clarity when appropriate
-11. For security-related questions, focus specifically on the security aspects mentioned in the query
+RESPONSE STYLE REQUIREMENTS (Critical - Match Our Winning Style):
+• BE CONCISE: Give direct, brief answers without unnecessary elaboration
+• BE SPECIFIC: Focus on concrete capabilities and features, not generic descriptions  
+• BE BUSINESS-FOCUSED: Address practical business value and outcomes
+• AVOID: Long explanations, marketing language, or theoretical discussions
+• USE: Simple, clear sentences that directly answer the question
+• STRUCTURE: Use bullet points for multiple items, but keep each point brief
 
-IMPORTANT: Your answer must DIRECTLY address the original query's intent and focus, using the SAME STYLE and APPROACH that our employees used in the historical responses. The goal is to maintain consistency with how we've successfully communicated with clients in the past.
+Content Rules:
+1. Use ONLY information from the provided historical Q&A pairs
+2. If context is irrelevant or insufficient (as determined by the Validation Agent), you will be instructed to output a specific fallback message.
+3. DO NOT include source references, scores, or citations
+4. Match the exact tone and brevity of our historical winning responses
+5. Address the specific question asked - no more, no less
 
-Query: {question}"""
+Query: {question}"""    # French system template
+    SYSTEM_TEMPLATE_FR = """Vous êtes un spécialiste Triskell Software PPM fournissant des réponses RFP concises et axées sur les affaires. Répondez aux questions en utilisant UNIQUEMENT les données Q&R historiques de nos propositions gagnantes.
 
-    # French system template
-    SYSTEM_TEMPLATE_FR = """Vous êtes un spécialiste Triskell Software PPM. Répondez aux questions des utilisateurs concernant notre logiciel de gestion de portefeuille de projets en vous appuyant sur les paires Q&R historiques de nos réponses gagnantes aux RFP.
-
-Contexte : Les résultats récupérés ci-dessous contiennent des questions historiques similaires avec leurs réponses rédigées par nos employés performants dans les réponses aux RFP (Demandes de Proposition) gagnantes :
-
+Contexte des réponses RFP réussies :
 {context}
 
-Règles :
-1. Utilisez UNIQUEMENT les informations des paires Q&R historiques fournies pour répondre
-2. Privilégiez le contenu avec des scores de pertinence plus élevés
-3. IMITEZ LE TON ET LE STYLE de nos précédentes réponses RFP réussies - c'est crucial
-4. Pour les données Excel, formatez correctement les formules et fonctions en utilisant des blocs de code
-5. Gardez les réponses professionnelles, claires et concises
-6. Si le contexte récupéré n'est pas pertinent (score < 0,5) ou manque de détails critiques, répondez "Non trouvé"
-7. N'incluez PAS de numéros de source, de scores de pertinence ou de références dans votre réponse
-8. NE mentionnez PAS de noms d'entreprises spécifiques, sauf s'ils apparaissent dans la requête originale
-9. Assurez-vous toujours que votre réponse s'adresse précisément à l'intention et au focus de la requête
-10. Utilisez des paragraphes et des puces pour plus de clarté si nécessaire
-11. Pour les questions liées à la sécurité, concentrez-vous spécifiquement sur les aspects de sécurité mentionnés dans la requête
+EXIGENCES DE STYLE DE RÉPONSE (Critique - Correspondre à Notre Style Gagnant) :
+• SOYEZ CONCIS : Donnez des réponses directes et brèves sans élaboration inutile
+• SOYEZ SPÉCIFIQUE : Concentrez-vous sur les capacités et fonctionnalités concrètes, pas sur des descriptions génériques
+• AXEZ SUR LES AFFAIRES : Abordez la valeur commerciale pratique et les résultats
+• ÉVITEZ : Les longues explications, le langage marketing ou les discussions théoriques
+• UTILISEZ : Des phrases simples et claires qui répondent directement à la question
+• STRUCTURE : Utilisez des puces pour plusieurs éléments, mais gardez chaque point bref
 
-IMPORTANT : Votre réponse doit répondre DIRECTEMENT à l'intention et au focus de la requête originale, en utilisant le MÊME STYLE et la MÊME APPROCHE que nos employés ont utilisés dans les réponses historiques. L'objectif est de maintenir la cohérence avec la façon dont nous avons communiqué avec succès avec les clients dans le passé.
+Règles de contenu :
+1. Utilisez UNIQUEMENT les informations des paires Q&R historiques fournies
+2. Si le contexte n'est pas pertinent ou insuffisant (tel que déterminé par l'Agent de Validation), il vous sera demandé de produire un message de repli spécifique.
+3. N'incluez PAS de références de source, scores ou citations
+4. Correspondez au ton exact et à la brièveté de nos réponses gagnantes historiques
+5. Adressez la question spécifique posée - ni plus, ni moins
 
 Requête : {question}"""
     
@@ -69,12 +63,11 @@ Requête : {question}"""
             api_key: API key for GPT model
         """
         self.api_key = api_key
-        
-        # Initialize the OpenAI model
+          # Initialize the OpenAI model with lower temperature for more consistent responses
         self.llm = ChatOpenAI(
             model="gpt-4",
             openai_api_key=api_key,
-            temperature=0.3
+            temperature=0  # Lower temperature for more focused, consistent responses
         )
         
     def _format_context(self, relevant_contexts: List[Tuple[dict, float]], language: str) -> str:
@@ -82,16 +75,18 @@ Requête : {question}"""
         Format the context retrieval results for the prompt template.
         
         Args:
-            relevant_contexts: List of context items with relevance scores
+            relevant_contexts: List of context items with relevance scores, 
+                               as selected by the ValidationAgent.
             language: Language for the response ('en' or 'fr')
             
         Returns:
-            Formatted context string
+            Formatted context string. If no relevant_contexts, returns a message indicating this.
         """
         if not relevant_contexts:
-            # If no context is found, return an appropriate message
-            no_results = "No relevant historical RFP responses found." if language == 'en' else "Aucune réponse RFP historique pertinente trouvée."
-            return no_results
+            # This case should ideally be handled by the ValidationAgent sending a fallback message.
+            # However, if it reaches here, provide a neutral context.
+            logger.warning("GeneratorAgent._format_context called with no relevant_contexts.")
+            return "No specific context provided by the Validation Agent." if language == 'en' else "Aucun contexte spécifique fourni par l'Agent de Validation."
             
         # Log retrieved Q&A pairs
         logger.info("Retrieved historical RFP Q&A pairs:")
@@ -101,67 +96,115 @@ Requête : {question}"""
             logger.info(f"Historical RFP Q&A #{i} [Score: {score:.4f}]:")
             logger.info(f"  RFP Question: {question}")
             logger.info(f"  Winning Response: {answer}")
-            
-        # Format context entries with numbered sources
+        
+        # Format context entries focusing on Q&A content
         formatted_entries = []
         for i, (context, score) in enumerate(relevant_contexts, 1):
             # Extract content (question) and answer
-            question = context.get("content", "")
-            answer = context.get("metadata", {}).get("answer", "")
+            question_text = context.get("content", "") # Renamed to avoid conflict
+            answer_text = context.get("metadata", {}).get("answer", "") # Renamed
             
-            # Include source number, relevance score and Q&A format
-            entry = f"Source {i} [Relevance: {score:.2f}]:\nRFP Question: {question}\nWinning Response: {answer}\n"
+            # Clean format focusing on the Q&A content without source numbers
+            entry = f"Q: {question_text}\nA: {answer_text}\n"
             formatted_entries.append(entry)
             
         # Join all entries with a separator
-        return "\n".join(formatted_entries)
+        return "\n---\n".join(formatted_entries)
         
-    async def generate_response(self, question: str, context: str, language: str) -> str:
+    def _post_process_response(self, response: str) -> str:
         """
-        Generate a response using the RAG approach with Gemini.
+        Post-process the response to ensure it matches our concise business style.
         
         Args:
-            question: User's question
-            context: Formatted context string
-            language: Language for the response ('en' or 'fr')
+            response: Raw response from the LLM
             
         Returns:
-            Generated response
+            Cleaned and formatted response
+        """
+        # Remove common verbose phrases that don't add value
+        verbose_phrases = [
+            "I hope this helps",
+            "Please let me know if you need",
+            "Feel free to ask",
+            "Based on the information provided",
+            "According to the context",
+            "It's worth noting that",
+            "Additionally, it should be mentioned",
+            "Furthermore,",
+            "Moreover,",
+            "In conclusion,",
+            "To summarize,"
+        ]
+        
+        cleaned_response = response
+        for phrase in verbose_phrases:
+            cleaned_response = cleaned_response.replace(phrase, "").strip()
+        
+        # Clean up multiple spaces and empty lines
+        import re
+        cleaned_response = re.sub(r'\s+', ' ', cleaned_response)
+        cleaned_response = re.sub(r'\n\s*\n', '\n', cleaned_response)
+        
+        return cleaned_response.strip()
+
+    async def generate_response(
+        self,
+        original_query: str, 
+        validation_result: Dict[str, Any],
+        language: str
+    ) -> str:
+        """
+        Generate a response based on validated information or return a fallback message.
+        
+        Args:
+            original_query: User's original question.
+            validation_result: Output from the ValidationAgent, containing either relevant contexts
+                               or a fallback message.
+            language: Language for the response ('en' or 'fr').
+            
+        Returns:
+            Generated response or fallback message.
         """
         try:
+            if validation_result.get("status") == "fallback":
+                fallback_message = validation_result.get("message", "Sorry, I couldn't process your request at this time.")
+                logger.info(f"GeneratorAgent received fallback: {fallback_message}")
+                # Log the interaction with fallback
+                await self._log_interaction(original_query, fallback_message, language, is_fallback=True)
+                return fallback_message
+
+            relevant_contexts = validation_result.get("relevant_contexts", [])
+            formatted_context = self._format_context(relevant_contexts, language)
+            
             # Choose the appropriate template based on language
             system_template = self.SYSTEM_TEMPLATE_FR if language == 'fr' else self.SYSTEM_TEMPLATE_EN
             
             # Create prompt with context and question
             prompt = ChatPromptTemplate.from_template(system_template)
             
-            # Create a chain that:
-            # 1. Takes a question
-            # 2. Formats the prompt with context and question
-            # 3. Passes the prompt to Gemini
-            # 4. Returns the generated text
             chain = prompt | self.llm
+            answer = await asyncio.to_thread( # Ensure LLM call is non-blocking
+                lambda: chain.invoke({"context": formatted_context, "question": original_query})
+            )
             
-            # Execute the chain
-            answer = chain.invoke({"context": context, "question": question})
-            
-            # Extract the generated text
             response_text = answer.content
+            response_text = self._post_process_response(response_text)
             
-            # Log the RAG process
-            await self._log_interaction(question, response_text, language)
+            await self._log_interaction(original_query, response_text, language)
             
             return response_text
             
         except Exception as e:
-            logger.error(f"Error generating RAG response: {str(e)}")
+            logger.error(f"Error generating response in GeneratorAgent: {str(e)}")
             # Return a generic error message in the appropriate language
-            if language == 'fr':
-                return "Désolé, je n'ai pas pu traiter votre demande. Veuillez réessayer."
-            else:
-                return "Sorry, I couldn't process your request. Please try again."
+            error_msg = "Désolé, je n'ai pas pu traiter votre demande. Veuillez réessayer." if language == 'fr' else "Sorry, I couldn't process your request. Please try again."
+            await self._log_interaction(original_query, error_msg, language, is_error=True)
+            return error_msg
     
-    async def _log_interaction(self, question: str, response: str, language: str) -> None:
+    async def _log_interaction(self, question: str, response: str, language: str, is_fallback: bool = False, is_error: bool = False) -> None:
         """Log the interaction for analytics."""
         # Implement logging to your analytics system
+        # You can add more details like whether it was a fallback or an error.
+        log_level = logging.WARNING if is_fallback or is_error else logging.INFO
+        logger.log(log_level, f"Interaction Log ({language}):\n  Question: {question}\n  Response: {response}\n  Fallback: {is_fallback}\n  Error: {is_error}")
         pass

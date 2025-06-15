@@ -35,8 +35,7 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 ai_agent = AIAgent(
     settings.GPT_API_KEY,
     use_hybrid_search=True,
-    vector_weight=0.7,
-    use_query_rewriting=True
+    vector_weight=0.7
 )
 
 # Initialize feedback store

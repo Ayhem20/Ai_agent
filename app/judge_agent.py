@@ -22,7 +22,7 @@ class JudgeAgent:
         
         # Initialize OpenAI client
         self.client = OpenAI(api_key=api_key)
-        self.model_name = "gpt-4"
+        self.model_name = "gpt-4o"
     
     def _is_french(self, text: str) -> bool:
         """Check if text appears to be in French by looking for French-specific characters/words"""
@@ -174,7 +174,7 @@ class JudgeAgent:
                 messages=[
                     {"role": "user", "content": judge_prompt}
                 ],
-                temperature=0.2,
+                temperature=0.1,
                 max_tokens=1024
             )
         )
@@ -197,7 +197,7 @@ class JudgeAgent:
                     messages=[
                         {"role": "user", "content": forced_french_prompt}
                     ],
-                    temperature=0.2,
+                    temperature=0.1,
                     max_tokens=1024
                 )
             )
